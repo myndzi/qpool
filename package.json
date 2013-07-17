@@ -8,7 +8,7 @@
   },
   "repository": "",
   "author": "Kris Reeves",
-  "license": "BSD",
+  "license": "MIT",
   "dependencies": {
     "q": "~0.9.6"
   }
