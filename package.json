@@ -1,0 +1,15 @@
+{
+  "name": "qpool",
+  "version": "0.1.0",
+  "description": "Object pool and queue using Q promises",
+  "main": "qpool.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "repository": "",
+  "author": "Kris Reeves",
+  "license": "BSD",
+  "dependencies": {
+    "q": "~0.9.6"
+  }
+}
