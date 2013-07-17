@@ -8,9 +8,9 @@
 // extend Object to allow use of unique objects as keys
 (function() {
 	// extend object to contain a unique id
-	if ( typeof Object.prototype.uid == "undefined" ) {
+	if ( typeof Object.prototype.__uid == "undefined" ) {
 		var id = 0;
-		Object.prototype.uid = function() {
+		Object.prototype.__uid = function() {
 			if ( typeof this.__uid == "undefined" ) {
 				this.__uid = ++id;
 			}
@@ -112,7 +112,7 @@ module.exports =
 			var obj = this._create(),
 				item = { obj: obj, timer: null, inuse: false };
 			
-			this.items[obj.uid()] = item;
+			this.items[obj.__uid()] = item;
 		}
 		
 		if (item && !this._isValid(item.obj)) {
@@ -146,7 +146,7 @@ module.exports =
 		else return ret;
 	};
 	QPool.prototype.release = function (obj) {
-		var item = this.items[obj.uid()];
+		var item = this.items[obj.__uid()];
 		
 		if (!item) { throw new Error('No such item'); }
 		if (!item.inuse) { throw new Error('Released an item that wasn\'t in use'); }
@@ -172,13 +172,13 @@ module.exports =
 		}
 	};
 	QPool.prototype.destroyObj = function (obj) {
-		var item = this.items[obj.uid()];
+		var item = this.items[obj.__uid()];
 		if (!item) { throw new Error('Destroy called on nonexistent item'); }
 		
 		this.log.silly('Destroying object', obj);
 		
 		clearTimeout(item.timer);
-		delete this.items[obj.uid()];
+		delete this.items[obj.__uid()];
 		
 		this._destroy.call(obj);
 	};
