@@ -7,17 +7,6 @@
 
 // extend Object to allow use of unique objects as keys
 (function() {
-	// extend object to contain a unique id
-	if ( typeof Object.prototype.__uid == "undefined" ) {
-		var id = 0;
-		Object.prototype.__uid = function() {
-			if ( typeof this.__uid == "undefined" ) {
-				this.__uid = ++id;
-			}
-			return this.__uid;
-		};
-	}
-	// 
 	if ( typeof Object.prototype.size == "undefined" ) {
 		Object.prototype.size = function () {
 			return Object.keys(this).length;
@@ -95,6 +84,7 @@ module.exports =
 			next.deferred.resolve(this.acquire());
 		}
 	};
+	var id = 0;
 	QPool.prototype.acquire = function () {
 		var item = null,
 			thenFn = null,
@@ -109,20 +99,25 @@ module.exports =
 			item = this.lru.shift();
 		} else if (this.items.size() < this.max) {
 			this.log.silly('Instantiating a new object');
-			var obj = this._create(),
-				item = { obj: obj, timer: null, inuse: false };
+			var obj = this._create(), item;
 			
-			this.items[obj.__uid()] = item;
+			obj.id = ++id;
+			item = { obj: obj, timer: null, inuse: false };
+			
+			this.items[obj.id] = item;
 		}
 		
 		if (item && !this._isValid(item.obj)) {
 			this.log.warn('Object wasn\'t valid, re-acquiring');
-			if (obj) { throw new Error('isValid failed on newly constructed object'); }
+			if (obj) {
+				this.log.warn('isValid failed on newly constructed object');
+				return;
+			}
 			
 			this.destroyObj(item.obj);
 			return this.acquire.apply(this, arguments);
 		}
-		
+
 		var ret;
 		if (item) {
 			clearTimeout(item.timer);
@@ -146,10 +141,16 @@ module.exports =
 		else return ret;
 	};
 	QPool.prototype.release = function (obj) {
-		var item = this.items[obj.__uid()];
+		var item = this.items[obj.id];
 		
-		if (!item) { throw new Error('No such item'); }
-		if (!item.inuse) { throw new Error('Released an item that wasn\'t in use'); }
+		if (!item) {
+			this.log.warn('QPool.release: No such item');
+			return;
+		}
+		if (!item.inuse) {
+			this.log.warn('QPool.release: Released an item that wasn\'t in use');
+			return;
+		}
 		
 		if (this.pending.length) {
 			this.log.silly('Reusing object for pending request');
@@ -172,13 +173,14 @@ module.exports =
 		}
 	};
 	QPool.prototype.destroyObj = function (obj) {
-		var item = this.items[obj.__uid()];
-		if (!item) { throw new Error('Destroy called on nonexistent item'); }
-		
-		this.log.silly('Destroying object', obj);
+		var item = this.items[obj.id];
+		if (!item) {
+			this.log.warn('Destroy called on nonexistent item');
+			return;
+		}
 		
 		clearTimeout(item.timer);
-		delete this.items[obj.__uid()];
+		delete this.items[obj.id];
 		
 		this._destroy.call(obj);
 	};
@@ -188,17 +190,21 @@ module.exports =
 		clearInterval(this.timer);
 		this.timer = null;
 		
+		this.log.silly('Rejecting pending promises');
 		this.pending.forEach(function (item) {
 			item.deferred.reject('Pool destroyed');
 		});
 		this.pending = null;
 		
+		this.log.silly('Destroying pooled objects: ' + Object.keys(this.items));
+		this.log.silly(this.items);
 		Object.keys(this.items).forEach(function (key) {
 			this.destroyObj(this.items[key].obj);
 		}, this);
 		this.items = null;
 		
 		this.lru = null;
+		this.log.silly('Done');
 	};
 	
 	return QPool;

@@ -20,7 +20,7 @@ var pool = new QPool({
 	log: { silly: console.log, info: console.log, warn: console.log, error: console.log },
 	min: 1,
 	max: 3,
-	cleanup: 1000
+	cleanup: 1
 });
 pool.acquire().then(function (obj) {
 	console.log(obj);
