@@ -16,7 +16,12 @@
 
 module.exports =
 (function () {
-	var Q = require('q');
+	var Q = require('q'),
+		Logger = function () { return { silly: noop, info: noop, warn: noop, error: noop }; }
+	
+	// optional dependency
+	try { Logger = require('logger'); }
+	catch (e) { }
 	
 	function noop(val) { if (val) return function () { return val; } };
 	function QPool(opts) {
@@ -34,7 +39,7 @@ module.exports =
 		
 		this._isValid = opts.isValid || noop(true);
 		
-		this.log = opts.log || { silly: noop, info: noop, warn: noop, error: noop };
+		this.log = new Logger('QPool', 'silly');
 
 		this.min = opts.min || 0;
 		this.max = opts.max || 10;
@@ -51,14 +56,14 @@ module.exports =
 			var display = true;
 			this.timer = setInterval(function () {
 				if (display) {
-					this.log.silly('Running cleanup');
+					this.log.trace('Running cleanup');
 					display = false;
 				}
 				var destroyed = false;
 				Object.keys(this.items).forEach(function (key) {
 					var obj = this.items[key].obj;
-					if (!this._isValid(obj)) {
-						console.log('invalid object', obj);
+					if (!this._isValid.call(obj)) {
+						this.log.warn('invalid object: ' + obj.id);
 						destroyed = true;
 						this.destroyObj(obj);
 					}
@@ -70,7 +75,7 @@ module.exports =
 			}.bind(this), opts.cleanup * 1000);
 		}
 		
-		this.log.silly('Created new pool');
+		this.log.info('Created new pool');
 	}
 	QPool.prototype.cycle = function () {
 		this.log.silly('Cycling queue', {
@@ -107,11 +112,11 @@ module.exports =
 			this.items[obj.id] = item;
 		}
 		
-		if (item && !this._isValid(item.obj)) {
+		if (item && !this._isValid.call(item.obj)) {
 			this.log.warn('Object wasn\'t valid, re-acquiring');
 			if (obj) {
 				this.log.warn('isValid failed on newly constructed object');
-				return;
+				return Q.reject('isValid failed');
 			}
 			
 			this.destroyObj(item.obj);

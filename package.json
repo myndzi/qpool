@@ -11,5 +11,8 @@
   "license": "MIT",
   "dependencies": {
     "q": "~0.9.6"
+  },
+  "devDependencies": {
+    "qpool": "~0.1.0"
   }
 }
